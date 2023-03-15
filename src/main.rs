@@ -1,8 +1,8 @@
 use std::{time::Duration, thread, fmt::Display, io::{stdin, stdout, Write}, env};
-use rodio::{source::{SineWave, Source, Zero}, OutputStream, Sink};
+use rodio::{source::{SineWave, Source, Zero}, OutputStream, queue::queue};
 pub struct Workout {
-    name: String,
     sections: Vec<WorkoutSet>,
+    name: String,
 }
 impl Workout {
     pub fn length(&self) -> Duration {
@@ -108,12 +108,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let workout = get_workout(&std::fs::read_to_string(file)?)?;
 
+    let (queue_in, queue_out) = queue(true);
     let (_stream, stream_handle) = OutputStream::try_default()?;
-    let sink = Sink::try_new(&stream_handle)?;
+    stream_handle.play_raw(queue_out)?;
 
     let beep_len = Duration::from_secs_f64(0.5);
     let beep_sample = |level: BeepLevel| {
-
         SineWave::new(level.get_frequency())
             .take_duration(beep_len)
             .fade_in(Duration::from_secs_f64(0.1))
@@ -124,13 +124,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
     };
 
+    // TODO: handle pausing somehow
     // thread::scope(|s| {
     //  s.spawn(|| {
-            play_workout(&workout, |level| 
-                sink.append(beep_sample(level))
-            )?;
+    //          ...
     //     });
     // });
+
+    play_workout(&workout, |level| 
+        queue_in.append(beep_sample(level))
+    )?;
 
     Ok(())
 }
@@ -187,7 +190,17 @@ fn play_workout(workout: &Workout, beep: impl Fn(BeepLevel)) -> Result<(), Box<d
                         }
                     },
 
-                    Rest { duration, } => thread::sleep(*duration),
+                    Rest { duration, } => {
+                        const LAST_5: Duration = Duration::from_secs(5);
+                        if let Some(dur_first) = duration.checked_sub(LAST_5) {
+                            thread::sleep(dur_first);
+                            println!("    5s left");
+                            beep(BeepLevel::Mid);
+                            thread::sleep(LAST_5);
+                        } else {
+                            thread::sleep(*duration)
+                        }
+                    },
                 }
             }
 
