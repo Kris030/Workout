@@ -28,10 +28,11 @@ impl Display for Workout {
     }
 }
 
+#[derive(Hash, PartialEq, Eq, Clone, Copy)]
 pub enum BeepLevel {
-    High,
-    Mid,
-    Low,
+    High = 0,
+    Mid  = 1,
+    Low  = 2,
 }
 impl BeepLevel {
     pub fn get_frequency(&self) -> f32 {
@@ -124,6 +125,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
     };
 
+    let presampled = [
+        beep_sample(BeepLevel::Low).buffered(),
+        beep_sample(BeepLevel::Mid).buffered(),
+        beep_sample(BeepLevel::High).buffered(),
+    ];
+
     // TODO: handle pausing somehow
     // thread::scope(|s| {
     //  s.spawn(|| {
@@ -132,7 +139,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // });
 
     play_workout(&workout, |level| 
-        queue_in.append(beep_sample(level))
+        queue_in.append(presampled[level as usize].clone())
     )?;
 
     Ok(())
