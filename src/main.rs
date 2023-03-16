@@ -4,6 +4,8 @@ use rodio::{source::{SineWave, Source, Zero}, OutputStream, queue::queue};
 use workout::{load_workout, BeepLevel, do_workout};
 use std::{time::Duration, env};
 
+// TODO: better errors
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let Some(file) = env::args().nth(1) else {
         return Err("No file provided".into());
@@ -11,6 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = std::fs::read_to_string(file)?;
     let workout = load_workout(&source)?;
 
+    // FIXME: ALSA lib pcm.c:8570:(snd_pcm_recover) underrun occurred
     let (queue_in, queue_out) = queue(true);
     let (_stream, stream_handle) = OutputStream::try_default()?;
     stream_handle.play_raw(queue_out)?;
