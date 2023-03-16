@@ -1,0 +1,18 @@
+Workout Warmup [NEXT Workout]
+
+Set Main
+	Excercise Neck circles 00:30"
+	Rest 00:05
+	Excercise Shoulder circles 00:30"
+	Rest 00:05
+	Excercise Elbow circles 00:30"
+	Rest 00:05
+	Excercise Body circles 00:30
+	Rest 00:05
+	Excercise Jumping jacks 00:30
+	Rest 00:05
+	Excercise Squats 00:30
+	Rest 00:05
+	Excercise Mill 00:30
+	Rest 00:05
+	Excercise Plank pushups 00:30

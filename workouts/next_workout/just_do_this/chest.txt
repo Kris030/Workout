@@ -1,0 +1,14 @@
+Workout Chest [NEXT Workout]
+
+Set Main
+	Excercise Side-to-side diamond pushups 00:40
+	Rest 00:20
+	Excercise Slow - explosive diamond pushups 00:40
+	Rest 00:20
+	Excercise Pike pushups 00:40
+	Rest 00:20
+	Excercise Slow - paused - explosive pushups 00:40
+	Rest 00:20
+	Excercise Slow - dead-stop - explosive pushups 00:40
+	Rest 00:20
+	Excercise Alligator pushups 00:40

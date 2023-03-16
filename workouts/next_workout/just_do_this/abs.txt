@@ -1,0 +1,16 @@
+Workout Abs [NEXT Workout]
+
+Set Main
+	Excercise Sitting crunches left - right - both 00:50
+	Rest 00:10
+	Excercise Side boxing crunches 00:50
+	Rest 00:10
+	Excercise Single leg raises (in turn) 00:50
+	Rest 00:10
+	Excercise Bicycle crunches 00:50
+	Rest 00:10
+	Excercise Mountain climber crunches 00:50
+	Rest 00:10
+	Excercise Slow crunches 00:50
+	Rest 00:10
+	Excercise Knee raises 00:50

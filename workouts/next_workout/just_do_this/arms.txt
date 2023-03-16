@@ -1,0 +1,13 @@
+Workout Arms [NEXT Workout]
+
+Set Main x2
+	Excercise Slow-explosive double pushups (half - full) 00:40
+	Rest 00:10
+	Excercise Towel biceps curls 00:40
+	Rest 00:10
+	Excercise Triceps extensions 00:40
+	Rest 00:10
+	Excercise Towel biceps curls 00:40
+	Rest 00:10
+	Excercise Slow - explosive diamond pushups 00:40
+Set rest 01:00
