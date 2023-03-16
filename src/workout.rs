@@ -230,7 +230,8 @@ pub fn do_workout(workout: &Workout, beep: impl Fn(BeepLevel)) -> Result<(), Box
 
             thread::sleep(PRE_SECTION_WAIT);
 
-            for p in &s.parts {
+            for pi in 0..s.parts.len() {
+				let p = &s.parts[pi];
                 println!("  {}", p);
 
                 use WorkoutSetElement::*;
@@ -267,14 +268,19 @@ pub fn do_workout(workout: &Workout, beep: impl Fn(BeepLevel)) -> Result<(), Box
                     },
 
                     Rest { duration, } => {
+						if let Some(Excercise { name, .. }) = s.parts.get(pi + 1) {
+							println!("    next: {name}")
+						}
+
                         const LAST_5: Duration = Duration::from_secs(5);
-                        if let Some(dur_first) = duration.checked_sub(LAST_5) {
-                            thread::sleep(dur_first);
-                            println!("    5s left");
-                            beep(BeepLevel::Mid);
-                            thread::sleep(LAST_5);
-                        } else {
-                            thread::sleep(*duration)
+                        match duration.checked_sub(LAST_5) {
+                            Some(dur_first) if !dur_first.is_zero() => {
+                                thread::sleep(dur_first);
+                                println!("    5s left");
+                                beep(BeepLevel::Mid);
+                                thread::sleep(LAST_5);
+                            }
+                            _ => thread::sleep(*duration),
                         }
                     },
                 }
@@ -289,7 +295,7 @@ pub fn do_workout(workout: &Workout, beep: impl Fn(BeepLevel)) -> Result<(), Box
         }
     }
 
-    println!("Readched the end. Good job!");
+    println!("Reached the end. Good job!");
 
     thread::sleep(Duration::from_secs(1));
 
