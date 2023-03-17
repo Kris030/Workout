@@ -6,10 +6,34 @@ use std::{time::Duration, env};
 
 // TODO: better errors
 
+fn parse_from(s: &str) -> Result<(u16, u16, u16), Box<dyn std::error::Error>> {
+    let Some((mut set, excercise)) = s.split_once('.') else {
+        return Err("Starting position format: SET[/SET_REP].EXCERCISE".into());
+    };
+
+    let set_rep;
+    if let Some((seti, srep)) = set.split_once('/') {
+        set = seti;
+        set_rep = srep.parse::<u16>()?.saturating_sub(1);
+    } else {
+        set_rep = 0;
+    }
+    
+    let set = set.parse::<u16>()?.saturating_sub(1);
+    let excercise = excercise.parse::<u16>()?.saturating_sub(1);
+    Ok((set, set_rep, excercise))
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let Some(file) = env::args().nth(1) else {
         return Err("No file provided".into());
     };
+    let from = if let Some(a) = env::args().nth(2) {
+        parse_from(&a)?
+    } else {
+        (0, 0, 0)
+    };
+
     let source = std::fs::read_to_string(file)?;
     let workout = load_workout(&source)?;
 
@@ -43,8 +67,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     });
     // });
 
-    do_workout(&workout, |level| 
-        queue_in.append(presampled[level as usize].clone())
+    do_workout(
+        workout, from,
+        |level| queue_in.append(presampled[level as usize].clone())
     )?;
 
     Ok(())

@@ -212,15 +212,42 @@ pub fn load_workout(source: &str) -> Result<Workout, Box<dyn std::error::Error>>
     })
 }
 
-pub fn do_workout(workout: &Workout, beep: impl Fn(BeepLevel)) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Beginning {workout}");
-
+pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLevel)) -> Result<(), Box<dyn std::error::Error>> {
+    let from = (from.0 as usize, from.1 as usize, from.2 as usize);
     const PRE_SECTION_WAIT: Duration = Duration::from_secs(2);
 
-    for s in &workout.sections {
+    println!("Beginning {workout}");
+    if from != (0, 0, 0) {
+        let parts = 
+            workout.sections[from.0]
+            .parts
+            .iter()
+            .filter(|p: _| matches!(p, WorkoutSetElement::Excercise { .. }))
+            .count();
+
+        if from.0 > workout.sections.len() ||
+           from.1 as u16 > workout.sections[from.0].reps ||
+           from.2 > parts {
+            return Err("Starting position is out of bounds".into());
+        }
+
+        print!("Starting from set {}", workout.sections[from.0].name.unwrap_or("[UNKNOWN]"));
+        if from.1 != 0 {
+            print!(" ({} / {})", from.1 + 1, workout.sections[from.0].reps);
+        }
+        println!(" {}. excercise", from.2 + 1);
+    }
+
+    let mut first = true;
+    for s in workout.sections.iter().skip(from.0) {
         println!("\nSection {s}");
 
-        for section_repetition in 0..s.reps {
+        let start = if first {
+            from.1 as u16
+        } else {
+            0
+        };
+        for section_repetition in start..s.reps {
             if section_repetition > 0 {
                 println!("\nRepeating section ({} / {})", section_repetition + 1, s.reps);
             }
@@ -230,7 +257,26 @@ pub fn do_workout(workout: &Workout, beep: impl Fn(BeepLevel)) -> Result<(), Box
 
             thread::sleep(PRE_SECTION_WAIT);
 
-            for pi in 0..s.parts.len() {
+            let start = if first {
+                first = false;
+
+                let mut exes_left = from.2 + 1;
+                s.parts.iter()
+                .enumerate()
+                .find_map(|(i, p)| {
+                    if let WorkoutSetElement::Excercise { .. } = p {
+                        exes_left -= 1;
+                        if exes_left == 0 {
+                            return Some(i);
+                        }
+                    }
+
+                    None
+                }).ok_or("Starting position is out of bounds")?
+            } else {
+                0
+            };
+            for pi in start..s.parts.len() {
 				let p = &s.parts[pi];
                 println!("  {}", p);
 
