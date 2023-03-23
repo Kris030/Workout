@@ -1,0 +1,15 @@
+Workout Back [NEXT Workout]
+
+Set Main x2
+	Excercise Back pushups 00:40
+	Rest 00:05
+	Excercise Towel superman pullups 00:40
+	Rest 00:05
+	Excercise Crossed arm back raises 00:40
+	Rest 00:40
+	Excercise Slow full angel 00:40
+	Rest 00:05
+	Excercise Iron man 00:40
+	Rest 00:05
+	Excercise Scapula pushups 00:40
+Set rest 00:40

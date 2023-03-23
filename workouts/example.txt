@@ -1,13 +1,11 @@
 Workout My shitty workout
 
 Set Nerd shit x2
-	Rest 00:10
-	Excercise Key presses 00:40
-	Rest 00:10
+	Excercise Key presses 00:05
+	Rest 00:06
 	Excercise Semicolon curls x10
-Set rest 01:00
+Set rest 00:10
 
 Set
 	Excercise X, switch to Y in the middle 00:10"
-	Rest 12:34
-	
+	Rest 00:12

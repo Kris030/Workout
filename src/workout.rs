@@ -213,10 +213,17 @@ pub fn load_workout(source: &str) -> Result<Workout, Box<dyn std::error::Error>>
 }
 
 pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLevel)) -> Result<(), Box<dyn std::error::Error>> {
-    let from = (from.0 as usize, from.1 as usize, from.2 as usize);
     const PRE_SECTION_WAIT: Duration = Duration::from_secs(2);
+    const REST_END_WARNING: Duration = Duration::from_secs(5);
+
+    let from = (from.0 as usize, from.1 as usize, from.2 as usize);
 
     println!("Beginning {workout}");
+
+    beep(BeepLevel::High);
+    beep(BeepLevel::Mid);
+    beep(BeepLevel::Low);
+
     if from != (0, 0, 0) {
         let parts = 
             workout.sections[from.0]
@@ -243,6 +250,7 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
         println!("\nSection {s}");
 
         let start = if first {
+            thread::sleep(Duration::from_secs(6));
             from.1 as u16
         } else {
             0
@@ -278,7 +286,7 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
             };
             for pi in start..s.parts.len() {
 				let p = &s.parts[pi];
-                println!("  {}", p);
+                println!("  {p}");
 
                 use WorkoutSetElement::*;
                 use ExcerciseAmout::*;
@@ -318,13 +326,12 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
 							println!("    next: {name}")
 						}
 
-                        const LAST_5: Duration = Duration::from_secs(5);
-                        match duration.checked_sub(LAST_5) {
+                        match duration.checked_sub(REST_END_WARNING) {
                             Some(dur_first) if !dur_first.is_zero() => {
                                 thread::sleep(dur_first);
-                                println!("    5s left");
+                                println!("    {}s left", REST_END_WARNING.as_secs());
                                 beep(BeepLevel::Mid);
-                                thread::sleep(LAST_5);
+                                thread::sleep(REST_END_WARNING);
                             }
                             _ => thread::sleep(*duration),
                         }
@@ -335,7 +342,18 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
             if section_repetition < s.reps - 1 {
                 if let Some(dur) = s.set_rest {
                     println!("[REST]: {dur:?}");
-                    thread::sleep(dur.saturating_sub(PRE_SECTION_WAIT));
+
+                    let dur = dur.saturating_sub(PRE_SECTION_WAIT);
+
+                    match dur.checked_sub(REST_END_WARNING) {
+                        Some(dur_first) if !dur_first.is_zero() => {
+                            thread::sleep(dur_first);
+                            println!("  {}s left", REST_END_WARNING.as_secs());
+                            beep(BeepLevel::Mid);
+                            thread::sleep(REST_END_WARNING);
+                        }
+                        _ => thread::sleep(dur),
+                    }
                 }
             }
         }
@@ -343,7 +361,13 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
 
     println!("Reached the end. Good job!");
 
-    thread::sleep(Duration::from_secs(1));
+    thread::sleep(Duration::from_secs(2));
+
+    beep(BeepLevel::Low);
+    beep(BeepLevel::Mid);
+    beep(BeepLevel::High);
+
+    thread::sleep(Duration::from_secs(2));
 
     Ok(())
 }
