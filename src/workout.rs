@@ -1,10 +1,12 @@
-use std::{time::Duration, fmt::Display, thread};
+use std::{fmt::Display, thread, time::Duration};
+
+use anyhow::Result;
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy)]
 pub enum BeepLevel {
     High = 0,
-    Mid  = 1,
-    Low  = 2,
+    Mid = 1,
+    Low = 2,
 }
 impl BeepLevel {
     pub fn get_frequency(&self) -> f32 {
@@ -23,24 +25,36 @@ pub struct Workout<'a> {
 }
 impl Workout<'_> {
     pub fn length(&self) -> Duration {
-        self.sections.iter().map(|s| {
-            let reps = s.reps as u32;
-            let rests = s.set_rest.unwrap_or_default();
-            let parts: Duration = s.parts.iter().map(|p| match p {
-                WorkoutSetElement::Excercise { amount, .. } => match amount {
-                    ExcerciseAmout::Time { duration, .. } => *duration,
-                    ExcerciseAmout::Reps(_) => Duration::default(),
-                },
-                WorkoutSetElement::Rest { duration } => *duration,
-            }).sum();
+        self.sections
+            .iter()
+            .map(|s| {
+                let reps = s.reps as u32;
+                let rests = s.set_rest.unwrap_or_default();
+                let parts: Duration = s
+                    .parts
+                    .iter()
+                    .map(|p| match p {
+                        WorkoutSetElement::Excercise { amount, .. } => match amount {
+                            ExcerciseAmout::Time { duration, .. } => *duration,
+                            ExcerciseAmout::Reps(_) => Duration::default(),
+                        },
+                        WorkoutSetElement::Rest { duration } => *duration,
+                    })
+                    .sum();
 
-            rests * (reps - 1) + parts * reps
-        }).sum()
+                rests * (reps - 1) + parts * reps
+            })
+            .sum()
     }
 }
 impl Display for Workout<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} [~{:.1} mins]", self.name, self.length().as_secs_f64() / 60.)?;
+        write!(
+            f,
+            "{} [~{:.1} mins]",
+            self.name,
+            self.length().as_secs_f64() / 60.
+        )?;
         Ok(())
     }
 }
@@ -67,10 +81,7 @@ impl Display for WorkoutSet<'_> {
 }
 
 pub enum ExcerciseAmout {
-    Time {
-        duration: Duration,
-        midbeep: bool,
-    },
+    Time { duration: Duration, midbeep: bool },
     Reps(u16),
 }
 impl Display for ExcerciseAmout {
@@ -89,34 +100,34 @@ pub enum WorkoutSetElement<'a> {
     },
     Rest {
         duration: Duration,
-    }
+    },
 }
 impl Display for WorkoutSetElement<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            WorkoutSetElement::Excercise { name, amount, .. } =>
-                write!(f, "[EXCERCISE]: {name} {amount}"),
-            WorkoutSetElement::Rest { duration } =>
-                write!(f, "[REST]: {duration:?}"),
+            WorkoutSetElement::Excercise { name, amount, .. } => {
+                write!(f, "[EXCERCISE]: {name} {amount}")
+            }
+            WorkoutSetElement::Rest { duration } => write!(f, "[REST]: {duration:?}"),
         }
     }
 }
 
-pub fn load_workout(source: &str) -> Result<Workout, Box<dyn std::error::Error>> {
-	fn parse_dur(s: &str) -> Result<Duration, Box<dyn std::error::Error>> {
-		let (mins, secs)  = s[..5].split_at(2);
-		let secs = &secs[1..];
-		Ok(Duration::from_secs(mins.parse::<u64>()? * 60 + secs.parse::<u64>()?))
-	}
+pub fn load_workout(source: &str) -> Result<Workout> {
+    fn parse_dur(s: &str) -> Result<Duration> {
+        let (mins, secs) = s[..5].split_at(2);
+        let secs = &secs[1..];
+        Ok(Duration::from_secs(
+            mins.parse::<u64>()? * 60 + secs.parse::<u64>()?,
+        ))
+    }
 
-    let lines: Vec<&str> = source.lines()
-        .filter(|l| !l.trim().is_empty())
-        .collect();
+    let lines: Vec<&str> = source.lines().filter(|l| !l.trim().is_empty()).collect();
 
     let Some(workout_name) = lines[0]
         .trim_start()
         .strip_prefix("Workout ") else {
-        return Err("Didn't provide workout name".into());
+        return Err(anyhow::Error::msg("Didn't provide workout name"));
     };
 
     let mut l = 1;
@@ -125,7 +136,7 @@ pub fn load_workout(source: &str) -> Result<Workout, Box<dyn std::error::Error>>
         let Some(set) = lines[l]
             .trim_start()
             .strip_prefix("Set") else {
-            return Err("Expected start of set".into());
+            return Err(anyhow::Error::msg("Expected start of set"));
         };
 
         let get_name_reps = || {
@@ -135,8 +146,7 @@ pub fn load_workout(source: &str) -> Result<Workout, Box<dyn std::error::Error>>
             }
 
             if let Some((name, reps)) = set.rsplit_once(' ') {
-                if let Some(Ok(r)) = reps.strip_prefix('x')
-                    .map(|v| v.parse::<u16>()) {
+                if let Some(Ok(r)) = reps.strip_prefix('x').map(|v| v.parse::<u16>()) {
                     (Some(name), r)
                 } else {
                     (Some(set), 1)
@@ -157,40 +167,43 @@ pub fn load_workout(source: &str) -> Result<Workout, Box<dyn std::error::Error>>
             let p = match t {
                 "Excercise" => {
                     let Some((name, amount)) = rest.rsplit_once(' ') else {
-                        return Err("No amount provided for excercise".into());
+                        return Err(anyhow::Error::msg("No amount provided for excercise"));
                     };
 
-                    let amount = {
-                        if let Some(reps) = amount.strip_prefix('x') {
-                            ExcerciseAmout::Reps(reps.parse().map_err(|_| "Coudln't parse excercise reps")?)
-                        } else {
-                            let midbeep = amount.ends_with('"');
-                            ExcerciseAmout::Time {
-                                duration: parse_dur(amount)
-                                    .map_err(|_| "Couldn't parse excercise duration")?,
-                                midbeep,
+                    let amount =
+                        {
+                            if let Some(reps) = amount.strip_prefix('x') {
+                                ExcerciseAmout::Reps(reps.parse().map_err(|_| {
+                                    anyhow::Error::msg("Coudln't parse excercise reps")
+                                })?)
+                            } else {
+                                let midbeep = amount.ends_with('"');
+                                ExcerciseAmout::Time {
+                                    duration: parse_dur(amount).map_err(|_| {
+                                        anyhow::Error::msg("Couldn't parse excercise duration")
+                                    })?,
+                                    midbeep,
+                                }
                             }
-                        }
-                    };
+                        };
 
                     WorkoutSetElement::Excercise { name, amount }
+                }
+                "Rest" => WorkoutSetElement::Rest {
+                    duration: parse_dur(rest)
+                        .map_err(|_| anyhow::Error::msg("Couldn't parse rest duration"))?,
                 },
-                "Rest" =>
-                    WorkoutSetElement::Rest {
-                        duration: parse_dur(rest)
-                            .map_err(|_| "Couldn't parse rest duration")?
-                    },
-                _ => break
+                _ => break,
             };
             set_parts.push(p);
             l += 1;
         }
-        
+
         let set_rest = if l < lines.len() {
             lines[l]
-            .trim_start()
-            .strip_prefix("Set rest ")
-            .and_then(|r| parse_dur(r).ok())
+                .trim_start()
+                .strip_prefix("Set rest ")
+                .and_then(|r| parse_dur(r).ok())
         } else {
             None
         };
@@ -212,7 +225,7 @@ pub fn load_workout(source: &str) -> Result<Workout, Box<dyn std::error::Error>>
     })
 }
 
-pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLevel)) -> Result<(), Box<dyn std::error::Error>> {
+pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLevel)) -> Result<()> {
     const PRE_SECTION_WAIT: Duration = Duration::from_secs(2);
     const REST_END_WARNING: Duration = Duration::from_secs(5);
 
@@ -225,20 +238,23 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
     beep(BeepLevel::Low);
 
     if from != (0, 0, 0) {
-        let parts = 
-            workout.sections[from.0]
+        let parts = workout.sections[from.0]
             .parts
             .iter()
             .filter(|p: _| matches!(p, WorkoutSetElement::Excercise { .. }))
             .count();
 
-        if from.0 > workout.sections.len() ||
-           from.1 as u16 > workout.sections[from.0].reps ||
-           from.2 > parts {
-            return Err("Starting position is out of bounds".into());
+        if from.0 > workout.sections.len()
+            || from.1 as u16 > workout.sections[from.0].reps
+            || from.2 > parts
+        {
+            return Err(anyhow::Error::msg("Starting position is out of bounds"));
         }
 
-        print!("Starting from set {}", workout.sections[from.0].name.unwrap_or("[UNKNOWN]"));
+        print!(
+            "Starting from set {}",
+            workout.sections[from.0].name.unwrap_or("[UNKNOWN]")
+        );
         if from.1 != 0 {
             print!(" ({} / {})", from.1 + 1, workout.sections[from.0].reps);
         }
@@ -257,7 +273,11 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
         };
         for section_repetition in start..s.reps {
             if section_repetition > 0 {
-                println!("\nRepeating section ({} / {})", section_repetition + 1, s.reps);
+                println!(
+                    "\nRepeating section ({} / {})",
+                    section_repetition + 1,
+                    s.reps
+                );
             }
 
             beep(BeepLevel::Mid);
@@ -269,27 +289,29 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
                 first = false;
 
                 let mut exes_left = from.2 + 1;
-                s.parts.iter()
-                .enumerate()
-                .find_map(|(i, p)| {
-                    if let WorkoutSetElement::Excercise { .. } = p {
-                        exes_left -= 1;
-                        if exes_left == 0 {
-                            return Some(i);
+                s.parts
+                    .iter()
+                    .enumerate()
+                    .find_map(|(i, p)| {
+                        if let WorkoutSetElement::Excercise { .. } = p {
+                            exes_left -= 1;
+                            if exes_left == 0 {
+                                return Some(i);
+                            }
                         }
-                    }
 
-                    None
-                }).ok_or("Starting position is out of bounds")?
+                        None
+                    })
+                    .ok_or(anyhow::Error::msg("Starting position is out of bounds"))?
             } else {
                 0
             };
             for pi in start..s.parts.len() {
-				let p = &s.parts[pi];
+                let p = &s.parts[pi];
                 println!("  {p}");
 
-                use WorkoutSetElement::*;
                 use ExcerciseAmout::*;
+                use WorkoutSetElement::*;
                 match &p {
                     Excercise { amount, .. } => {
                         beep(BeepLevel::High);
@@ -308,23 +330,23 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
                                 }
 
                                 beep(BeepLevel::Low);
-                            },
+                            }
 
                             Reps(_) => {
-								use std::io::{stdin, stdout, Write};
+                                use std::io::{stdin, stdout, Write};
 
                                 print!("    Press enter to continue! ");
                                 stdout().flush()?;
                                 let mut s = String::new();
                                 stdin().read_line(&mut s)?;
-                            },
+                            }
                         }
-                    },
+                    }
 
-                    Rest { duration, } => {
-						if let Some(Excercise { name, .. }) = s.parts.get(pi + 1) {
-							println!("    next: {name}")
-						}
+                    Rest { duration } => {
+                        if let Some(Excercise { name, .. }) = s.parts.get(pi + 1) {
+                            println!("    next: {name}")
+                        }
 
                         match duration.checked_sub(REST_END_WARNING) {
                             Some(dur_first) if !dur_first.is_zero() => {
@@ -335,7 +357,7 @@ pub fn do_workout(workout: Workout, from: (u16, u16, u16), beep: impl Fn(BeepLev
                             }
                             _ => thread::sleep(*duration),
                         }
-                    },
+                    }
                 }
             }
 

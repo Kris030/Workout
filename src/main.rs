@@ -1,14 +1,19 @@
 pub mod workout;
 
-use rodio::{source::{SineWave, Source, Zero}, OutputStream, queue::queue};
-use workout::{load_workout, BeepLevel, do_workout};
-use std::{time::Duration, env};
+use anyhow::Result;
+use rodio::{
+    queue::queue,
+    source::{SineWave, Source, Zero},
+    OutputStream,
+};
+use std::{env, time::Duration};
+use workout::{do_workout, load_workout, BeepLevel};
 
 // TODO: better errors
 
-fn parse_from(s: &str) -> Result<(u16, u16, u16), Box<dyn std::error::Error>> {
+fn parse_from(s: &str) -> Result<(u16, u16, u16)> {
     let Some((mut set, excercise)) = s.split_once('.') else {
-        return Err("Starting position format: SET[/SET_REP].EXCERCISE".into());
+        return Err(anyhow::Error::msg("Starting position format: SET[/SET_REP].EXCERCISE"));
     };
 
     let set_rep;
@@ -18,15 +23,15 @@ fn parse_from(s: &str) -> Result<(u16, u16, u16), Box<dyn std::error::Error>> {
     } else {
         set_rep = 0;
     }
-    
+
     let set = set.parse::<u16>()?.saturating_sub(1);
     let excercise = excercise.parse::<u16>()?.saturating_sub(1);
     Ok((set, set_rep, excercise))
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let Some(file) = env::args().nth(1) else {
-        return Err("No file provided".into());
+        return Err(anyhow::Error::msg("No file provided"));
     };
     let from = if let Some(a) = env::args().nth(2) {
         parse_from(&a)?
@@ -48,9 +53,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .take_duration(beep_len)
             .fade_in(Duration::from_secs_f64(0.1))
             .take_crossfade_with(
-                Zero::<i16>::new(1, 1)
-                    .take_duration(Duration::from_secs_f64(0.1)),
-                beep_len
+                Zero::<i16>::new(1, 1).take_duration(Duration::from_secs_f64(0.1)),
+                beep_len,
             )
     };
 
@@ -67,10 +71,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     });
     // });
 
-    do_workout(
-        workout, from,
-        |level| queue_in.append(presampled[level as usize].clone())
-    )?;
+    do_workout(workout, from, |level| {
+        queue_in.append(presampled[level as usize].clone())
+    })?;
 
     Ok(())
 }
